@@ -1,0 +1,293 @@
+/* =====================================================================
+   Hero film overlays. The film section exposes --film-p (0..1) and data-chapter.
+   ===================================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hero-film {
+  --hero-ink: #f4efe4;
+  color: var(--hero-ink);
+  margin-top: calc(-1 * var(--nav-h, 68px));
+}
+
+/* ---------- Living sign: her real sign, rebuilt as text, sized to the tracked board ---------- */
+.living-sign {
+  container-type: size;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 3cqw;
+  padding: 7cqh 4cqw;
+  box-sizing: border-box;
+  color: #e0ae4f;
+  /* Her real sign is painted in a bold grotesque of the Arial family; the poster bake uses the same face. */
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  text-shadow: 0 0 2.4cqh rgba(224, 174, 79, 0.35);
+}
+.living-sign__text {
+  display: grid;
+  gap: 4cqh;
+  min-width: 0;
+}
+.living-sign p {
+  margin: 0;
+  white-space: nowrap;
+  line-height: 1;
+}
+/* Each line is sized by whichever is tighter, the board's height or its width, so it fits any board. */
+.living-sign__name {
+  font-weight: 700;
+  font-size: min(30cqh, 5.6cqw);
+  letter-spacing: 0.02em;
+}
+.living-sign__i {
+  text-transform: lowercase;
+}
+.living-sign__gap {
+  display: inline-block;
+  width: 0.6em;
+}
+.living-sign__aisles {
+  font-weight: 700;
+  font-size: min(13cqh, 2.35cqw);
+}
+.living-sign__contact {
+  font-weight: 700;
+  font-size: min(9.5cqh, 2.2cqw);
+  color: #f2efe8;
+  text-shadow: none;
+}
+.living-sign__mark {
+  height: 62cqh;
+  width: auto;
+}
+
+/* ---------- Scroll cue, address ---------- */
+.hero-cue {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+  translate: -50% 0;
+  color: var(--hero-ink);
+  opacity: calc(1 - var(--film-p, 0) * 18);
+  transition: opacity 300ms;
+}
+.hero-cue::after {
+  content: "";
+  display: block;
+  width: 1px;
+  height: 36px;
+  margin: 12px auto 0;
+  background: linear-gradient(var(--color-champagne), transparent);
+  animation: cue 2.4s var(--ease-cinema) infinite;
+  transform-origin: top;
+}
+@keyframes cue {
+  0% {
+    transform: scaleY(0);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+@media (max-width: 760px) {
+  .hero-address {
+    display: none;
+  }
+}
+.hero-address {
+  position: absolute;
+  right: clamp(16px, 4vw, 48px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+  color: color-mix(in oklab, var(--hero-ink) 70%, transparent);
+  opacity: calc(1 - var(--film-p, 0) * 6);
+}
+
+/* Cinematic base gradient: keeps every subtitle legible, even over the white marble. */
+.hero-film [data-film-overlay]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(5, 5, 5, 0.72) 0%, rgba(5, 5, 5, 0.35) 26%, transparent 52%),
+    linear-gradient(to right, rgba(5, 5, 5, 0.35), transparent 45%);
+}
+
+/* ---------- Chapter cards ---------- */
+.chapter-card {
+  z-index: 3;
+  position: absolute;
+  left: clamp(16px, 5vw, 72px);
+  bottom: clamp(88px, 14vh, 160px);
+  display: grid;
+  gap: 10px;
+  max-width: min(34ch, 80vw);
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition: opacity 700ms var(--ease-cinema), transform 900ms var(--ease-cinema);
+  pointer-events: none;
+}
+.chapter-card__num {
+  color: var(--color-champagne-hi);
+}
+.chapter-card__line {
+  font-family: var(--display);
+  font-style: var(--display-style);
+  font-weight: var(--display-weight);
+  font-size: clamp(1.6rem, 3.2vw, 2.8rem);
+  line-height: 1.1;
+  text-wrap: balance;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55);
+}
+.hero-film[data-chapter="rue"] [data-card="rue"],
+.hero-film[data-chapter="seuil"] [data-card="seuil"],
+.hero-film[data-chapter="allee"] [data-card="allee"],
+.hero-film[data-chapter="or"] [data-card="or"],
+.hero-film[data-chapter="tetes"] [data-card="tetes"] {
+  opacity: 1;
+  transform: none;
+}
+/* The storefront chapter waits for the sign to be read first. */
+.hero-film[data-chapter="rue"] [data-card="rue"] {
+  opacity: clamp(0, (var(--film-p, 0) - 0.05) * 20, 1);
+}
+
+/* Lexique: film subtitles, mono timecode over an italic line. */
+:root[data-ad="lexique"] .chapter-card__num {
+  font-family: var(--font-plex-mono);
+}
+
+/* Galerie: a museum cartel on the film. */
+:root[data-ad="galerie"] .chapter-card {
+  background: rgba(250, 249, 246, 0.94);
+  color: #111;
+  padding: 18px 20px;
+  border-left: 2px solid var(--color-champagne);
+  box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.5);
+}
+:root[data-ad="galerie"] .chapter-card__num {
+  color: var(--color-champagne-lo);
+}
+:root[data-ad="galerie"] .chapter-card__line {
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+  text-shadow: none;
+}
+
+/* Écrin: centred gold capitals, like the logo. */
+:root[data-ad="ecrin"] .chapter-card {
+  left: 50%;
+  translate: -50% 0;
+  text-align: center;
+  justify-items: center;
+}
+:root[data-ad="ecrin"] .chapter-card__line {
+  font-size: clamp(1.1rem, 2.2vw, 1.8rem);
+  letter-spacing: 0.12em;
+  color: var(--color-champagne-hi);
+}
+
+/* ---------- Ending B: the logo appears in the marble's reflection ---------- */
+.mirror-mark {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: clamp(120px, 18vw, 260px);
+  translate: -50% -50%;
+  perspective: 900px;
+  opacity: clamp(0, (var(--film-p, 0) - 0.88) * 12, 0.92);
+  pointer-events: none;
+}
+.mirror-mark img {
+  width: 100%;
+  transform: rotateX(58deg) scaleY(-1);
+  filter: blur(0.4px) saturate(1.1);
+  -webkit-mask-image: linear-gradient(to top, #000 30%, transparent 95%);
+  mask-image: linear-gradient(to top, #000 30%, transparent 95%);
+}
+
+/* ---------- Ending A: the shelves lift off the last frame ---------- */
+.finale {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  pointer-events: none;
+  /* 0 until the film rests on its last frame, then 0 → 1 over the dwell. */
+  --f: clamp(0, calc((var(--film-p, 0) - 0.93) / 0.065), 1);
+  opacity: clamp(0, calc((var(--film-p, 0) - 0.918) * 400), 1);
+}
+.finale__plate {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+}
+/* Same cover-fit as the canvas: the plate is the film frame scaled to cover the stage. */
+.finale__plate--16x9 {
+  width: max(100cqw, calc(100cqh * 16 / 9));
+  aspect-ratio: 16 / 9;
+}
+.finale__plate--9x16 {
+  width: max(100cqw, calc(100cqh * 9 / 16));
+  aspect-ratio: 9 / 16;
+  display: none;
+}
+@media (max-aspect-ratio: 4/5) {
+  .finale__plate--16x9 {
+    display: none;
+  }
+  .finale__plate--9x16 {
+    display: block;
+  }
+}
+.finale__layer {
+  position: absolute;
+  max-width: none;
+  will-change: transform;
+  transform-origin: 50% 60%;
+  filter: drop-shadow(0 calc(var(--f) * 28px) calc(var(--f) * 36px) rgba(0, 0, 0, calc(var(--f) * 0.65)));
+}
+.finale__layer--1 {
+  transform: translate3d(0, calc(var(--f) * -5%), 0) scale(calc(1 + var(--f) * 0.05));
+}
+.finale__layer--2 {
+  transform: translate3d(0, calc(var(--f) * 3%), 0) scale(calc(1 + var(--f) * 0.12));
+}
+.finale__layer--3 {
+  transform: translate3d(calc(var(--f) * 3%), calc(var(--f) * 7%), 0) scale(calc(1 + var(--f) * 0.22));
+}
+/* The film behind falls into shadow so the doubles under the cut-outs disappear. */
+:root[data-ending="a"] .hero-film canvas {
+  filter: brightness(calc(1 - clamp(0, calc((var(--film-p, 0) - 0.93) / 0.065), 1) * 0.86))
+    blur(calc(clamp(0, calc((var(--film-p, 0) - 0.93) / 0.065), 1) * 5px));
+}
+
+/* ---------- Static mode keeps the cards readable in flow ---------- */
+.hero-film[data-mode="static"] .chapter-card,
+.hero-film[data-mode="static"] .hero-address {
+  position: static;
+  opacity: 1;
+  transform: none;
+  translate: none;
+  margin-block: 12px;
+  color: var(--fg);
+}
+.hero-film[data-mode="static"] .hero-cue,
+.hero-film[data-mode="static"] .mirror-mark {
+  display: none;
+}

@@ -1,0 +1,277 @@
+/*
+ * Structural styles for the scroll film. Theme hooks: --film-bg, --film-fg, --film-accent.
+ * Inline custom properties set by FilmHero: --film-pin-desktop/-mobile, --film-focal-l/-p, --film-lqip-l/-p.
+ * Runtime: --film-p (0..1), --film-loaded (0..1), [data-chapter], [data-film-ready], [data-mode].
+ * Never put overflow: hidden on an ancestor of .stage: it silently disables position: sticky.
+ */
+
+.film {
+  --film-pin: var(--film-pin-desktop, 400lvh);
+  --film-focal: var(--film-focal-l, 50% 50%);
+  --film-lqip: var(--film-lqip-l, none);
+  position: relative;
+  height: calc(100lvh + var(--film-pin));
+  background-color: var(--film-bg, #0d0a08);
+  color: var(--film-fg, #f7f0e6);
+}
+
+@media (max-aspect-ratio: 4/5) {
+  .film {
+    --film-pin: var(--film-pin-mobile, 340lvh);
+    --film-focal: var(--film-focal-p, 50% 50%);
+    --film-lqip: var(--film-lqip-p, none);
+  }
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100lvh;
+  overflow: clip;
+  isolation: isolate;
+  background-color: var(--film-bg, #0d0a08);
+  background-image: var(--film-lqip);
+  background-position: var(--film-focal);
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.poster,
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--film-focal);
+}
+
+.canvas {
+  opacity: 0;
+  transition: opacity 200ms linear;
+}
+
+.film[data-film-ready] .canvas {
+  opacity: 1;
+}
+
+/* JS sizes the box to the sign's largest on-screen size and writes a matrix3d each frame. */
+.sign {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  transform-origin: 0 0;
+  backface-visibility: hidden;
+  container-type: size;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sign[data-visible] {
+  opacity: var(--sign-fade, 1);
+  filter: brightness(calc(0.55 + var(--sign-b, 0.8) * 0.6));
+}
+
+/* Copy lives in the small viewport so it is never under the iOS toolbar. */
+.overlay {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  height: 100svh;
+}
+
+.skip {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(rgb(13 10 8 / 0.78), rgb(13 10 8 / 0.78)) padding-box,
+    conic-gradient(var(--film-accent, #f2c14e) calc(var(--film-loaded, 0) * 1turn), rgb(255 255 255 / 0.22) 0)
+      border-box;
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition:
+    opacity 300ms ease,
+    visibility 0s linear 0s;
+}
+
+.skip[data-hidden] {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 300ms ease,
+    visibility 0s linear 300ms;
+}
+
+.chapters {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 3;
+}
+
+.chapters ol {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgb(13 10 8 / 0.6);
+  list-style: none;
+}
+
+.chapters button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.62);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+.chapters button:hover,
+.chapters button[aria-current] {
+  color: #fff;
+}
+
+.chapters button[aria-current] {
+  background: rgb(255 255 255 / 0.14);
+}
+
+@media (max-aspect-ratio: 4/5) {
+  .chapters {
+    display: none;
+  }
+}
+
+.skip:focus-visible,
+.chapters button:focus-visible,
+.watch:focus-visible,
+.close:focus-visible {
+  outline: 2px solid var(--film-accent, #f2c14e);
+  outline-offset: 3px;
+}
+
+/* Static mode ("Voir le film") */
+
+.watch {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 0;
+}
+
+.watch button,
+.close {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1px solid rgb(255 255 255 / 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dialog {
+  width: min(92vw, 1280px);
+  max-width: none;
+  max-height: 92svh;
+  padding: 0;
+  border: 0;
+  background: #000;
+  color: #fff;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 0.82);
+}
+
+.dialog video {
+  display: block;
+  width: 100%;
+  max-height: calc(92svh - 64px);
+  background: #000;
+}
+
+.dialog form {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px;
+}
+
+/* Static layout: poster, then the copy in normal flow. Also applied before hydration under reduced motion. */
+
+.film[data-mode='static'] {
+  height: auto;
+}
+
+.film[data-mode='static'] .stage {
+  position: relative;
+  height: auto;
+}
+
+.film[data-mode='static'] .poster {
+  position: relative;
+  display: block;
+  height: 100svh;
+}
+
+.film[data-mode='static'] .overlay {
+  position: relative;
+  height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film {
+    height: auto;
+  }
+
+  .stage {
+    position: relative;
+    height: auto;
+  }
+
+  .poster {
+    position: relative;
+    display: block;
+    height: 100svh;
+  }
+
+  .overlay {
+    position: relative;
+    height: auto;
+  }
+
+  .canvas,
+  .sign,
+  .skip,
+  .chapters {
+    display: none;
+  }
+}

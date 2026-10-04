@@ -1,0 +1,17 @@
+.research/
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
+.env*
+!.env.example
+
+# raw client drops (large; kept locally, masters live in .research)
+WhatsApp *.mp4
+WhatsApp *.jpeg
+film-masters/
+
+# development frames for the film lab only
+public/film/dev/

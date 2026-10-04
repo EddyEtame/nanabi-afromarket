@@ -1,0 +1,586 @@
+/* =====================================================================
+   Sections: one markup, three stagings (data-ad on <html>).
+   ===================================================================== */
+
+/* ---------- Reveal ---------- */
+.js .reveal {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity 1100ms var(--ease-cinema) var(--reveal-delay, 0ms),
+    transform 1100ms var(--ease-cinema) var(--reveal-delay, 0ms);
+}
+.js .reveal[data-revealed] {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- Nav ---------- */
+.site-nav {
+  position: sticky;
+  top: var(--demo-bar-h, 52px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 14px;
+  color: var(--fg);
+  background: color-mix(in oklab, var(--bg) 78%, transparent);
+  backdrop-filter: blur(12px);
+  transition: background-color 900ms var(--ease-cinema);
+}
+.site-nav {
+  transition: background-color 900ms var(--ease-cinema), transform 600ms var(--ease-cinema), opacity 400ms;
+}
+.site-nav[data-hidden] {
+  transform: translate3d(0, -110%, 0);
+  opacity: 0;
+}
+.site-nav[data-over-film] {
+  background: linear-gradient(rgba(5, 5, 5, 0.55), transparent);
+  backdrop-filter: none;
+  color: #f4efe4;
+}
+.site-nav[data-over-film] .site-nav__link {
+  color: rgba(244, 239, 228, 0.82);
+}
+.site-nav[data-over-film] .site-nav__cta {
+  border-color: rgba(244, 239, 228, 0.6);
+  color: #f4efe4;
+}
+.site-nav[data-over-film] .site-nav__cta:hover {
+  background: #f4efe4;
+  color: #0a0a0a;
+}
+.site-nav__word {
+  font-family: var(--font-cormorant);
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  font-size: 0.95rem;
+}
+.site-nav__link {
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--fg-soft);
+  text-decoration: none;
+  position: relative;
+}
+.site-nav__link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 500ms var(--ease-cinema);
+}
+.site-nav__link:hover::after {
+  transform: scaleX(1);
+}
+.site-nav__cta,
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--fg);
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  transition: background-color 400ms var(--ease-cinema), color 400ms var(--ease-cinema), border-color 400ms;
+}
+.site-nav__cta:hover,
+.btn:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+.btn--solid {
+  background: var(--fg);
+  color: var(--bg);
+}
+.btn--solid:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--color-noir);
+}
+
+/* ---------- Letter ---------- */
+.letter {
+  padding-block: clamp(96px, 16vw, 220px) clamp(72px, 10vw, 140px);
+}
+.letter__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: clamp(24px, 6vw, 120px);
+  align-items: end;
+}
+.letter__salute {
+  font-size: clamp(2.6rem, 6vw, 5.5rem);
+  color: var(--accent);
+}
+.letter__title {
+  font-size: clamp(2rem, 4.4vw, 4.2rem);
+  max-width: 18ch;
+}
+.letter__body {
+  display: grid;
+  gap: 1.1em;
+  max-width: 52ch;
+  margin-top: clamp(40px, 6vw, 80px);
+  margin-left: auto;
+  margin-right: clamp(0px, 8vw, 140px);
+  color: var(--fg-soft);
+  font-size: clamp(1.06rem, 1rem + 0.3vw, 1.2rem);
+}
+.letter__sign {
+  font-size: 2.2rem;
+  color: var(--fg);
+  margin-top: 0.4em;
+}
+:root[data-ad="galerie"] .letter__split {
+  grid-template-columns: 1fr;
+  text-align: center;
+  justify-items: center;
+}
+:root[data-ad="galerie"] .letter__salute {
+  font-size: 0.75rem;
+  font-family: var(--font-instrument);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+:root[data-ad="galerie"] .letter__body {
+  margin-inline: auto;
+  columns: 2 22ch;
+  column-gap: 48px;
+  display: block;
+}
+:root[data-ad="galerie"] .letter__body p {
+  margin-bottom: 1em;
+  break-inside: avoid;
+}
+:root[data-ad="ecrin"] .letter__title {
+  font-size: clamp(1.6rem, 3.4vw, 3rem);
+  line-height: 1.15;
+}
+
+/* ---------- Aisles ---------- */
+.aisles {
+  padding-block: clamp(72px, 10vw, 160px);
+}
+.aisles__head {
+  display: grid;
+  gap: 16px;
+  margin-bottom: clamp(40px, 7vw, 96px);
+}
+.aisles__eyebrow {
+  color: var(--accent);
+}
+.aisles__title {
+  font-size: clamp(2rem, 5vw, 4.6rem);
+  max-width: 20ch;
+}
+.aisles__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.aisle__figure {
+  margin: 0;
+}
+.aisle__media {
+  overflow: hidden;
+  position: relative;
+}
+.aisles__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1600ms var(--ease-cinema);
+}
+.aisle:hover .aisles__img {
+  transform: scale(1.04);
+}
+.aisle__cartel {
+  display: grid;
+  gap: 6px;
+}
+.aisle__num {
+  color: var(--accent);
+}
+.aisle__name {
+  font-size: clamp(2.2rem, 6vw, 5.8rem);
+}
+.aisle__items {
+  color: var(--fg-soft);
+  max-width: 44ch;
+}
+
+/* Lexique: a stacked index of the four words; the photo slides in beside each word. */
+:root[data-ad="lexique"] .aisle {
+  border-top: 1px solid var(--rule);
+  padding-block: clamp(20px, 3vw, 36px);
+}
+:root[data-ad="lexique"] .aisle__figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: clamp(20px, 4vw, 64px);
+  align-items: center;
+}
+:root[data-ad="lexique"] .aisle__media {
+  order: 2;
+  aspect-ratio: 4 / 3;
+}
+:root.js[data-ad="lexique"] .aisle__media {
+  clip-path: inset(0 0 0 100%);
+  transition: clip-path 1300ms var(--ease-cinema) 120ms;
+}
+:root.js[data-ad="lexique"] .aisle[data-revealed] .aisle__media {
+  clip-path: inset(0 0 0 0);
+}
+:root[data-ad="lexique"] .aisle--habillement .aisle__name {
+  color: var(--color-encre-bleu);
+}
+:root[data-ad="lexique"] .aisle--coiffure .aisle__name {
+  color: var(--color-encre-rouge);
+}
+:root[data-ad="lexique"] .aisle--cosmetique .aisle__name {
+  color: var(--color-encre-ocre);
+}
+:root[data-ad="lexique"] .aisle--produits .aisle__name {
+  color: var(--color-encre-vert);
+}
+
+/* Galerie: framed works on white, a cartel under each, the marble reflection below. */
+:root[data-ad="galerie"] .aisles__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(32px, 6vw, 96px) clamp(24px, 4vw, 64px);
+}
+:root[data-ad="galerie"] .aisle__media {
+  aspect-ratio: 4 / 5;
+  padding: clamp(10px, 1.6vw, 22px);
+  background: #fff;
+  box-shadow: 0 1px 0 #e7e2da, 0 30px 60px -40px rgba(17, 17, 17, 0.35);
+  -webkit-box-reflect: below 2px linear-gradient(transparent 72%, rgba(255, 255, 255, 0.22));
+}
+:root[data-ad="galerie"] .aisle__cartel {
+  margin-top: 28px;
+  padding-left: 14px;
+  border-left: 1px solid var(--rule);
+}
+:root[data-ad="galerie"] .aisle__name {
+  font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+}
+:root[data-ad="galerie"] .aisle:nth-child(even) {
+  margin-top: clamp(0px, 10vw, 160px);
+}
+
+/* Écrin: dark panels, each image lit only where the light falls. */
+:root[data-ad="ecrin"] .aisles__list {
+  display: grid;
+  gap: clamp(16px, 2vw, 28px);
+}
+:root[data-ad="ecrin"] .aisle__figure {
+  position: relative;
+}
+:root[data-ad="ecrin"] .aisle__media {
+  aspect-ratio: 21 / 9;
+}
+:root[data-ad="ecrin"] .aisle__cartel {
+  position: absolute;
+  left: clamp(16px, 3vw, 40px);
+  bottom: clamp(16px, 3vw, 40px);
+  z-index: 2;
+  pointer-events: none;
+}
+:root[data-ad="ecrin"] .aisle__name {
+  font-size: clamp(1.6rem, 3.6vw, 3.4rem);
+  color: var(--color-champagne-hi);
+}
+:root[data-ad="ecrin"] .aisle__items {
+  color: color-mix(in oklab, var(--color-ivoire) 75%, transparent);
+}
+.cursor-light {
+  position: relative;
+}
+.cursor-light::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--lx, 50%) var(--ly, 45%),
+    transparent 0,
+    rgba(5, 5, 5, 0.12) 18%,
+    rgba(5, 5, 5, 0.7) 42%,
+    rgba(5, 5, 5, 0.9) 70%
+  );
+}
+@media (max-width: 760px) {
+  .cursor-light::after {
+    background: radial-gradient(
+      circle at var(--lx, 50%) var(--ly, 45%),
+      transparent 0,
+      rgba(5, 5, 5, 0.1) 26%,
+      rgba(5, 5, 5, 0.66) 55%,
+      rgba(5, 5, 5, 0.88) 85%
+    );
+  }
+}
+
+/* ---------- Lexicon ---------- */
+.lexicon {
+  padding-block: clamp(72px, 10vw, 160px);
+}
+.lexicon__head {
+  display: grid;
+  gap: 16px;
+  margin-bottom: clamp(32px, 6vw, 80px);
+}
+.lexicon__title {
+  font-size: clamp(2rem, 5vw, 4.6rem);
+  max-width: 18ch;
+}
+.lexicon__list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: clamp(28px, 4vw, 56px) clamp(24px, 4vw, 64px);
+}
+.lexicon__entry {
+  border-top: 1px solid var(--rule);
+  padding-top: 18px;
+}
+.lexicon__term {
+  font-size: clamp(2.2rem, 4vw, 3.6rem);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+}
+.lexicon__swatch {
+  width: 1.5em;
+  height: 1.5em;
+  flex: none;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--fg) 12%, transparent), 0 10px 24px -14px rgba(0, 0, 0, 0.6);
+  transition: transform 900ms var(--ease-cinema), border-radius 600ms var(--ease-cinema);
+}
+.lexicon__entry:hover .lexicon__swatch {
+  transform: rotate(-18deg) scale(1.12);
+}
+:root[data-ad="galerie"] .lexicon__swatch {
+  border-radius: 0;
+  width: 1.2em;
+  height: 1.5em;
+  padding: 3px;
+  background: #fff;
+}
+:root[data-ad="ecrin"] .lexicon__swatch {
+  box-shadow: 0 0 0 1px var(--color-champagne), 0 0 30px -6px color-mix(in oklab, var(--color-champagne) 60%, transparent);
+}
+:root[data-ad="lexique"] .lexicon__term {
+  color: var(--ink);
+}
+.lexicon__def {
+  margin: 0;
+  color: var(--fg-soft);
+  max-width: 42ch;
+}
+:root[data-ad="galerie"] .lexicon__list {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+:root[data-ad="galerie"] .lexicon__entry {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  gap: 24px;
+  padding-block: 18px;
+}
+:root[data-ad="galerie"] .lexicon__term {
+  font-size: 1.6rem;
+  margin: 0;
+}
+:root[data-ad="ecrin"] .lexicon__term {
+  color: var(--color-champagne-hi);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+/* ---------- Heads ---------- */
+.heads {
+  padding-block: clamp(72px, 10vw, 160px);
+  display: grid;
+  gap: clamp(32px, 5vw, 72px);
+}
+.heads__text {
+  display: grid;
+  gap: 16px;
+  max-width: 60ch;
+}
+.heads__title {
+  font-size: clamp(2rem, 5vw, 4.6rem);
+}
+.heads__media {
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+.heads__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+:root[data-ad="galerie"] .heads__media {
+  padding: clamp(10px, 1.6vw, 22px);
+  background: #fff;
+  box-shadow: 0 30px 60px -40px rgba(17, 17, 17, 0.35);
+}
+
+/* ---------- Gold ---------- */
+.gold {
+  position: relative;
+  padding-block: clamp(48px, 8vw, 120px);
+}
+.gold__media {
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  max-height: 86vh;
+}
+.gold__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gold__text {
+  display: grid;
+  gap: 16px;
+  max-width: 60ch;
+  margin-top: clamp(28px, 4vw, 56px);
+}
+.gold__title {
+  font-size: clamp(2rem, 5vw, 4.6rem);
+}
+:root[data-ad="ecrin"] .gold__title {
+  color: var(--color-champagne-hi);
+}
+
+/* ---------- Visit ---------- */
+.visit {
+  padding-block: clamp(96px, 14vw, 200px);
+}
+.visit__inner {
+  display: grid;
+  gap: 24px;
+  max-width: 980px;
+}
+.visit__title {
+  font-size: clamp(2.6rem, 7vw, 6.4rem);
+}
+.visit__address {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--rule);
+  padding-top: 24px;
+}
+.visit__street {
+  display: block;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+}
+.visit__city {
+  display: block;
+  color: var(--fg-soft);
+  letter-spacing: 0.06em;
+}
+.visit__metro {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg-soft);
+}
+.visit__metro-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e2001a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+.visit__hours {
+  color: var(--fg-soft);
+}
+.visit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+  padding-block: 40px calc(40px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 24px;
+}
+.footer__grille {
+  color: var(--accent);
+}
+.footer__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.footer__logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+}
+.footer__socials {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 0.85rem;
+}
+.footer__socials a {
+  color: var(--fg);
+  text-decoration: none;
+}
+.footer__legal {
+  font-size: 0.75rem;
+  color: var(--fg-soft);
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 760px) {
+  .letter__split,
+  :root[data-ad="lexique"] .aisle__figure,
+  :root[data-ad="galerie"] .aisles__list,
+  :root[data-ad="galerie"] .lexicon__entry {
+    grid-template-columns: 1fr;
+  }
+  :root[data-ad="lexique"] .aisle__media {
+    order: 0;
+  }
+  :root[data-ad="galerie"] .aisle:nth-child(even) {
+    margin-top: 0;
+  }
+  :root[data-ad="ecrin"] .aisle__media {
+    aspect-ratio: 4 / 5;
+  }
+  .letter__body {
+    margin-right: 0;
+  }
+}

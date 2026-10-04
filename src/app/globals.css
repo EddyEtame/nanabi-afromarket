@@ -1,0 +1,312 @@
+@import "tailwindcss";
+
+/*
+  Brand core, measured on her logo (k-means, 2026-10-04): pure black, champagne gold #A7935A, white.
+  Wax inks sampled from her Instagram feed and shop footage. Every art direction below is built on this core.
+*/
+@theme {
+  --color-noir: #0a0a0a;
+  --color-champagne: #a7935a;
+  --color-champagne-hi: #cdbb86;
+  --color-champagne-lo: #74643a;
+  --color-ivoire: #f8f6f0;
+  --color-marbre: #efebe4;
+  --color-veine: #cfc8be;
+  --color-encre-bleu: #276386;
+  --color-encre-ocre: #c9871f;
+  --color-encre-rouge: #b2404e;
+  --color-encre-indigo: #23355e;
+  --color-encre-vert: #2e6b3f;
+
+  --font-cormorant: var(--font-cormorant), "Cormorant Garamond", Garamond, "Times New Roman", serif;
+  --font-bodoni: var(--font-bodoni), "Bodoni Moda", Didot, "Times New Roman", serif;
+  --font-instrument: var(--font-instrument), "Instrument Sans", system-ui, "Segoe UI", sans-serif;
+  --font-plex-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  --ease-cinema: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- Art-direction tokens ---------- */
+:root {
+  --bg: var(--color-marbre);
+  --bg-raised: #f7f4ee;
+  --fg: var(--color-noir);
+  --fg-soft: #4b4740;
+  --rule: var(--color-veine);
+  --accent: var(--color-champagne-lo);
+  --accent-on-dark: var(--color-champagne-hi);
+  --display: var(--font-cormorant);
+  --display-style: italic;
+  --display-weight: 400;
+  --display-tracking: -0.01em;
+  --display-case: none;
+  --body: var(--font-instrument);
+  --label: var(--font-plex-mono);
+  --label-tracking: 0.14em;
+  --chapter-ink: var(--color-encre-bleu);
+  --radius: 0px;
+  color-scheme: light;
+}
+
+/* AD-1 Galerie Marbre: white cube, high-contrast didone, museum cartels. */
+:root[data-ad="galerie"] {
+  --bg: #faf9f6;
+  --bg-raised: #ffffff;
+  --fg: #111111;
+  --fg-soft: #55514a;
+  --rule: #e3ded6;
+  --display: var(--font-bodoni);
+  --display-style: normal;
+  --display-weight: 400;
+  --display-tracking: -0.02em;
+  --label: var(--font-instrument);
+  --label-tracking: 0.22em;
+}
+
+/* AD-3 Écrin: the logo itself, gold on black; light is the transition. */
+:root[data-ad="ecrin"] {
+  --bg: #050505;
+  --bg-raised: #0e0d0b;
+  --fg: #f1ece2;
+  --fg-soft: #b3aa99;
+  --rule: #2a2620;
+  --accent: var(--color-champagne-hi);
+  --display: var(--font-cormorant);
+  --display-style: normal;
+  --display-weight: 300;
+  --display-tracking: 0.04em;
+  --display-case: uppercase;
+  --label: var(--font-instrument);
+  --label-tracking: 0.3em;
+  color-scheme: dark;
+}
+
+/* ---------- Base ---------- */
+html {
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+body {
+  margin: 0;
+  padding-top: var(--demo-bar-h, 48px);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: clamp(1rem, 0.95rem + 0.2vw, 1.0625rem);
+  line-height: 1.6;
+  transition: background-color 900ms var(--ease-cinema), color 900ms var(--ease-cinema);
+}
+::selection {
+  background: var(--color-champagne);
+  color: var(--color-noir);
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ---------- Type system ---------- */
+.t-display {
+  font-family: var(--display);
+  font-style: var(--display-style);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-case);
+  line-height: 1.02;
+  text-wrap: balance;
+}
+.t-label {
+  font-family: var(--label);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+}
+.t-italic-word {
+  font-family: var(--display);
+  font-style: italic;
+  color: var(--accent);
+}
+.t-lede {
+  font-size: clamp(1.125rem, 1rem + 0.6vw, 1.375rem);
+  line-height: 1.5;
+  color: var(--fg-soft);
+  max-width: 34ch;
+}
+
+/* ---------- Layout ---------- */
+.gutter {
+  padding-inline: clamp(16px, 5vw, 72px);
+}
+.measure {
+  max-width: 64ch;
+}
+.rule {
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* Wavy grille motif from her real security shutter: used for the loader and the scroll progress. */
+.grille {
+  --grille-h: 10px;
+  height: var(--grille-h);
+  background-image: radial-gradient(ellipse 7px 4px at 50% 100%, transparent 62%, currentColor 64% 76%, transparent 78%),
+    radial-gradient(ellipse 7px 4px at 50% 0%, transparent 62%, currentColor 64% 76%, transparent 78%);
+  background-size: 14px var(--grille-h);
+  background-position: 0 0, 7px 0;
+  opacity: 0.55;
+}
+
+/* Lexique: section grounds take the ink of the fabric on screen. */
+:root[data-ad="lexique"] .ink-ground {
+  background: color-mix(in oklab, var(--chapter-ink) 9%, var(--bg));
+  transition: background-color 1200ms var(--ease-cinema);
+}
+
+/* ---------- Demo bar + art-direction wipe ---------- */
+.demo-bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-block: calc(env(safe-area-inset-top, 0px) + 8px) 8px;
+  background: color-mix(in oklab, var(--color-noir) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  color: var(--color-ivoire);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-champagne) 30%, transparent);
+}
+.demo-chip {
+  font-family: var(--font-instrument);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  min-height: 32px;
+  border: 1px solid color-mix(in oklab, var(--color-champagne) 35%, transparent);
+  color: color-mix(in oklab, var(--color-ivoire) 75%, transparent);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 300ms var(--ease-cinema), color 300ms var(--ease-cinema), border-color 300ms;
+}
+.demo-chip:hover {
+  color: var(--color-ivoire);
+  border-color: var(--color-champagne);
+}
+.demo-chip[aria-checked="true"] {
+  background: var(--color-champagne);
+  border-color: var(--color-champagne);
+  color: var(--color-noir);
+}
+/* A black curtain edged in champagne rises over the page, the direction swaps underneath, then it lifts away. */
+@media (max-width: 760px) {
+  .demo-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 10px;
+    padding-block: calc(env(safe-area-inset-top, 0px) + 6px) 6px;
+    scrollbar-width: none;
+  }
+  .demo-bar > * {
+    flex: none;
+  }
+  .demo-chip {
+    padding: 4px 8px;
+    min-height: 30px;
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+  }
+}
+/* Anchored sections land below the demo bar and the sticky nav. */
+section[id] {
+  scroll-margin-top: calc(var(--demo-bar-h, 48px) + var(--nav-h, 68px));
+}
+
+.ad-wipe {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  background: var(--color-noir);
+  transform: translate3d(0, 101%, 0);
+}
+.ad-wipe::before,
+.ad-wipe::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-champagne);
+  box-shadow: 0 0 28px 3px color-mix(in oklab, var(--color-champagne) 55%, transparent);
+}
+.ad-wipe::before {
+  top: 0;
+}
+.ad-wipe::after {
+  bottom: 0;
+}
+.ad-wipe__line {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 56px;
+  height: 56px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: center / 92% no-repeat url("/brand/logo-mark.png"), var(--color-noir);
+  opacity: 0;
+}
+.ad-wipe[data-active] {
+  animation: ad-wipe 1040ms var(--ease-cinema) both;
+}
+.ad-wipe[data-active] .ad-wipe__line {
+  animation: ad-wipe-mark 1040ms ease both;
+}
+@keyframes ad-wipe {
+  0% {
+    transform: translate3d(0, 101%, 0);
+  }
+  50% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, -101%, 0);
+  }
+}
+@keyframes ad-wipe-mark {
+  30%,
+  70% {
+    opacity: 1;
+  }
+  0%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
