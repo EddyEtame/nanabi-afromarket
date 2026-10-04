@@ -1,0 +1,30 @@
+{
+  "aspect": "9x16",
+  "frameCount": 300,
+  "tiers": {
+    "hi": {
+      "width": 900,
+      "height": 1600,
+      "quality": 62,
+      "bytes": 24899748
+    },
+    "lite": {
+      "width": 720,
+      "height": 1280,
+      "quality": 58,
+      "bytes": 18506198
+    }
+  },
+  "lqip": "data:image/webp;base64,UklGRi4BAABXRUJQVlA4ICIBAADQBgCdASoYACsAPu1ysFOppqQipWgBMB2JYgCzs75vXbSBzZ8jaRlC6TZO4uV50BG0Pi4Ig8pBTlia+153mgAA/vr2ikQzCHwgLT5BKVoPStGx02tMlKNLtQn1kVlKG/15uHmZtOyQ3PNIi9lEE2qtdJEPQzs3EoztkoVgAr47g7jstK/6OL+pquW9yVUHmY1aJ38ngiLrsQWMDamsc1F3SleKciy1kgo49rvPp92DpvrK/8Lf5EULxKvVAZmzT4k4P+swnhLPn4PtzgC1tT1bVMaRgEOYM738AcbG8HOX41T+l6YwfXOOCTQLKIs3D9m2es6doOLWJPoiCvp3b7HY8djNQX+MXzXWAsh+kr+kU0pTpSAUAwU0WYY+nTsCRzAAAA==",
+  "poster": {
+    "width": 900,
+    "height": 1600,
+    "avifBytes": 96436,
+    "jpgBytes": 238619
+  },
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "bytes": 14527613
+  }
+}
