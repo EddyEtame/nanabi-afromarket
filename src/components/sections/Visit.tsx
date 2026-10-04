@@ -3,16 +3,17 @@
 import { facts, ui, visit } from "@/content/site";
 import { usePrefs } from "@/lib/prefs";
 import { Reveal } from "@/components/Reveal";
+import { Split } from "@/components/Split";
 
 export function Visit() {
   const { t } = usePrefs();
   return (
-    <section id="venir" className="visit gutter" aria-labelledby="visit-title">
+    <section id="venir" className="visit gutter" aria-labelledby="visit-title" data-ink-clear>
       <div className="visit__inner">
         <p className="t-label">{t(visit.eyebrow)}</p>
-        <Reveal as="h2" className="t-display visit__title">
-          <span id="visit-title">{t(visit.title)}</span>
-        </Reveal>
+        <Split as="h2" className="t-display visit__title" id="visit-title">
+          {t(visit.title)}
+        </Split>
 
         {/* The address set as a signature, not a footer line. */}
         <Reveal as="div" className="visit__address" delay={120}>

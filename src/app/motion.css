@@ -1,0 +1,153 @@
+/* =====================================================================
+   Motion signatures. Lexique: colour follows the cloth. Galerie: works under gallery light.
+   Écrin: light passes over gold. Shared: split titles, parallax frames, magnetic actions.
+   ===================================================================== */
+
+/* No will-change on split lines and words: hundreds of permanent compositor layers cost every frame of the
+   page, the film included. GSAP promotes each line only while it animates. */
+
+/* Parallax frames: the image is scaled by the motion script, so the frame must clip it. */
+[data-parallax] {
+  overflow: hidden;
+}
+.heads__frame,
+.gold__frame {
+  overflow: hidden;
+}
+
+/* ---------- Lexique: the page takes the ink of the cloth at the centre of the screen ---------- */
+:root[data-ad="lexique"] body {
+  background-color: color-mix(in oklab, var(--page-ink, var(--bg)) 11%, var(--bg));
+  transition: background-color 1400ms var(--ease-cinema), color 900ms var(--ease-cinema);
+}
+
+/* The word becomes the cloth: the swatch grows into the whole entry. */
+.lexicon__entry {
+  position: relative;
+  isolation: isolate;
+}
+.lexicon__entry::before {
+  content: "";
+  position: absolute;
+  inset: -14px -16px;
+  z-index: -1;
+  background: var(--swatch) center / cover;
+  filter: brightness(0.42) saturate(1.15);
+  clip-path: circle(0% at 2.6rem 3.2rem);
+  transition: clip-path 1000ms var(--ease-cinema);
+}
+.lexicon__term,
+.lexicon__def {
+  transition: color 600ms var(--ease-cinema);
+}
+@media (hover: hover) and (pointer: fine) {
+  .lexicon__entry:hover::before {
+    clip-path: circle(140% at 2.6rem 3.2rem);
+  }
+  .lexicon__entry:hover .lexicon__term,
+  .lexicon__entry:hover .lexicon__def {
+    color: #f6f1e7;
+  }
+}
+:root[data-ad="galerie"] .lexicon__entry::before {
+  display: none;
+}
+
+/* ---------- Galerie: a spotlight from the ceiling and a glare that follows the eye ---------- */
+:root[data-ad="galerie"] .aisle__media,
+:root[data-ad="galerie"] .heads__media {
+  position: relative;
+  transform-style: preserve-3d;
+}
+:root[data-ad="galerie"] .aisle__media::before,
+:root[data-ad="galerie"] .heads__media::before {
+  content: "";
+  position: absolute;
+  inset: -40% -10% 30%;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(255, 244, 214, 0.38), transparent 70%);
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  transition: opacity 1800ms var(--ease-cinema) 300ms;
+}
+:root[data-ad="galerie"] .aisle[data-revealed] .aisle__media::before,
+:root[data-ad="galerie"] .heads__figure[data-revealed] .heads__media::before {
+  opacity: 1;
+}
+:root[data-ad="galerie"] .aisle__media::after,
+:root[data-ad="galerie"] .heads__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  background: radial-gradient(circle at var(--glare-x, 30%) var(--glare-y, 20%), rgba(255, 255, 255, 0.16), transparent 42%);
+}
+
+/* ---------- Écrin: light travels across gold capitals ---------- */
+:root[data-ad="ecrin"] .split-line,
+:root[data-ad="ecrin"] .split-line * {
+  background-image: linear-gradient(
+    100deg,
+    var(--fg) 0%,
+    var(--fg) 42%,
+    #f6e3a8 50%,
+    var(--fg) 58%,
+    var(--fg) 100%
+  );
+  background-size: 260% 100%;
+  background-position: 120% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ecrin-sweep 7s var(--ease-cinema) infinite;
+}
+:root[data-ad="ecrin"] .split-line .t-italic-word {
+  background-image: linear-gradient(100deg, var(--accent) 0%, var(--accent) 42%, #fff4cf 50%, var(--accent) 58%, var(--accent) 100%);
+}
+@keyframes ecrin-sweep {
+  0%,
+  35% {
+    background-position: 120% 0;
+  }
+  75%,
+  100% {
+    background-position: -20% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-ad="ecrin"] .split-line,
+  :root[data-ad="ecrin"] .split-line * {
+    animation: none;
+  }
+}
+
+/* ---------- From the film to the page: the dark finale melts into the page ground ---------- */
+:root:not([data-ad="ecrin"]) .letter {
+  background: linear-gradient(180deg, #050505 0, color-mix(in oklab, #050505 55%, var(--bg)) 9vh, var(--bg) 34vh);
+  background-color: transparent;
+}
+:root:not([data-ad="ecrin"]) .letter .letter__salute {
+  position: relative;
+}
+
+/* ---------- Closing wordmark ---------- */
+.footer__wordmark {
+  margin: 8px 0 -0.12em;
+  font-family: var(--font-cormorant);
+  font-weight: 300;
+  font-size: clamp(5rem, 24vw, 22rem);
+  line-height: 0.82;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+}
+:root[data-ad="galerie"] .footer__wordmark {
+  font-family: var(--font-bodoni);
+  font-weight: 400;
+}

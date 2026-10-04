@@ -39,9 +39,15 @@ export function CursorLight({ children, className = "" }: { children: React.Reac
       raf = requestAnimationFrame(tick);
     };
 
+    // Only animate while on screen: no idle work for lights nobody can see.
+    const io = new IntersectionObserver(([entry]) => {
+      cancelAnimationFrame(raf);
+      if (entry.isIntersecting) raf = requestAnimationFrame(tick);
+    });
     el.addEventListener("pointermove", onMove);
-    raf = requestAnimationFrame(tick);
+    io.observe(el);
     return () => {
+      io.disconnect();
       el.removeEventListener("pointermove", onMove);
       cancelAnimationFrame(raf);
     };

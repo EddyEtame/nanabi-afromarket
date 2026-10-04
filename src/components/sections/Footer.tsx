@@ -21,6 +21,10 @@ export function Footer() {
           ))}
         </ul>
       </div>
+      {/* Her name, set as large as the screen allows: the last thing the visitor sees. */}
+      <p className="footer__wordmark" aria-hidden="true">
+        NANAB<span className="lowercase">i</span>
+      </p>
       <p className="footer__legal">
         {facts.name} · {facts.street}, {facts.postcode} {facts.city} · {facts.phoneDisplay} · {facts.email}
       </p>

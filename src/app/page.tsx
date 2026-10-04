@@ -9,6 +9,7 @@ import { Heads } from "@/components/sections/Heads";
 import { Gold } from "@/components/sections/Gold";
 import { Visit } from "@/components/sections/Visit";
 import { Footer } from "@/components/sections/Footer";
+import { Motion } from "@/components/Motion";
 
 export default function Home() {
   return (
@@ -25,6 +26,7 @@ export default function Home() {
         <Visit />
       </main>
       <Footer />
+      <Motion />
     </PrefsProvider>
   );
 }

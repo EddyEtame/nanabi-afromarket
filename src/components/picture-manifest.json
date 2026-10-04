@@ -1,0 +1,69 @@
+{
+ "/img/aisle-coiffure.jpg": {
+  "w": 1400,
+  "h": 1028,
+  "widths": [
+   640,
+   1024,
+   1400
+  ]
+ },
+ "/img/aisle-cosmetique.jpg": {
+  "w": 1200,
+  "h": 1160,
+  "widths": [
+   640,
+   1024,
+   1200
+  ]
+ },
+ "/img/aisle-habillement.jpg": {
+  "w": 1400,
+  "h": 1034,
+  "widths": [
+   640,
+   1024,
+   1400
+  ]
+ },
+ "/img/aisle-produits.jpg": {
+  "w": 1400,
+  "h": 1071,
+  "widths": [
+   640,
+   1024,
+   1400
+  ]
+ },
+ "/img/gold-wide.jpg": {
+  "w": 2000,
+  "h": 1116,
+  "widths": [
+   640,
+   1024,
+   1600,
+   2000
+  ]
+ },
+ "/img/heads-wide.jpg": {
+  "w": 2400,
+  "h": 1339,
+  "widths": [
+   640,
+   1024,
+   1600,
+   2200,
+   2400
+  ]
+ },
+ "/img/storefront-night.jpg": {
+  "w": 2000,
+  "h": 1116,
+  "widths": [
+   640,
+   1024,
+   1600,
+   2000
+  ]
+ }
+}

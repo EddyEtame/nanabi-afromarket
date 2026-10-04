@@ -4,6 +4,7 @@ import { facts } from "@/content/site";
 import "./globals.css";
 import "./sections.css";
 import "./hero.css";
+import "./motion.css";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -12,11 +13,13 @@ const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
   display: "swap",
 });
+// Only the Galerie direction uses Bodoni: no preload, so the default page never pays for it.
 const bodoni = Bodoni_Moda({
   subsets: ["latin"],
   style: ["normal", "italic"],
   variable: "--font-bodoni",
   display: "swap",
+  preload: false,
 });
 const instrument = Instrument_Sans({
   subsets: ["latin"],
