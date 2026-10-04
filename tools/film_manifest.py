@@ -15,12 +15,23 @@ def main() -> None:
     films = {}
     for manifest in sorted(root.glob("*/manifest.json")):
         m = json.loads(manifest.read_text(encoding="utf-8"))
-        films[manifest.parent.name] = {
+        entry = {
             "frameCount": m["frameCount"],
             "tiers": {k: {"width": v["width"], "height": v["height"]} for k, v in m["tiers"].items()},
             "focal": FOCAL,
             "lqip": m.get("lqip", ""),
         }
+        # H.264 keyframe sets from tools/build_avc.py, only where they match the image tier frame for frame.
+        avc = {}
+        for tier, size in entry["tiers"].items():
+            codec_file = manifest.parent / f"avc-{tier}" / "codec.json"
+            if codec_file.exists():
+                c = json.loads(codec_file.read_text(encoding="utf-8"))
+                if (c["width"], c["height"], c["frames"]) == (size["width"], size["height"], m["frameCount"]):
+                    avc[tier] = {"codec": c["codec"]}
+        if avc:
+            entry["avc"] = avc
+        films[manifest.parent.name] = entry
     missing = {"16x9-a", "16x9-b", "9x16-a", "9x16-b"} - films.keys()
     if missing:
         sys.exit(f"missing films: {', '.join(sorted(missing))}")

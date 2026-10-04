@@ -1,8 +1,8 @@
 """Planar-track a quad (the shop sign) across a shipped frame sequence for the living-sign overlay.
 
-The quad is annotated once on a reference frame. Every other frame is matched against that reference
-(SIFT features inside a dilated mask around the façade, ratio test, RANSAC homography), so the track does
-not drift. Tracking runs forwards and backwards from the reference and stops where the sign is lost or
+The quad is annotated once on a reference frame and carried frame to frame by a homography of the
+façade plane (SIFT keypoints, or dense optical flow for smooth repainted walls; RANSAC either way).
+Tracking runs forwards and backwards from the reference and stops where the sign is lost or
 leaves the frame; frames outside that visible range are omitted from the output.
 
 Output JSON (pixel coordinates of the tracked frames; the player normalises by width/height, so a track
@@ -10,8 +10,9 @@ computed on the hi tier also serves the lite tier):
   { "width": W, "height": H, "aspect": 4.2?, "frames": { "<index>": { "q": [[x,y] x4 TL,TR,BR,BL], "b": 0..1 } } }
 
 Usage (run it on the exact frames you ship, after resampling and cropping):
-  python tools/track_sign.py --frames public/film/v1/9x16/hi --ref 230 \
-      --quad "[[312,402],[701,396],[705,488],[309,495]]" --range 168 239 --out public/film/v1/9x16/sign.json
+  python tools/track_sign.py --frames public/film/v2/16x9-a/hi --ref 0 --method flow --grow 150 \
+      --quad "[[585,134],[1355,174],[1354,337],[585,302]]" --range 0 60 --aspect 4.4 \
+      --out public/film/v2/16x9-a/sign.json
 """
 
 from __future__ import annotations
@@ -125,6 +126,51 @@ def track(seq: FrameSequence, ref: int, ref_quad: np.ndarray, lo: int, hi: int, 
     return quads
 
 
+FLOW_GRID_PX = 6  # sampling step of the dense flow field
+FLOW_EDGE_PERCENTILE = 55  # keep only the better-textured half of the samples
+
+
+def track_flow(seq: FrameSequence, ref: int, ref_quad: np.ndarray, lo: int, hi: int, grow: int,
+               min_matches: int) -> dict[int, np.ndarray]:
+    """Same chaining as track(), but each step fits the homography to a dense optical-flow field.
+
+    A freshly repainted, even facade has too few corners for SIFT (a few dozen), and the homography
+    then swings on noise. Dense flow uses every edge pixel around the board instead of a handful
+    of keypoints, so the plane stays locked on smooth walls.
+    """
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    dis = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+    shape = (seq.height, seq.width)
+    gy, gx = np.mgrid[0:seq.height:FLOW_GRID_PX, 0:seq.width:FLOW_GRID_PX]
+    quads = {ref: ref_quad}
+    for step in (1, -1):
+        prev, j = ref_quad, ref + step
+        img_prev = clahe.apply(seq.read(ref))
+        while lo <= j <= hi:
+            img = clahe.apply(seq.read(j))
+            flow = dis.calc(img_prev, img, None)
+            mask = quad_mask(shape, prev, grow)[gy, gx] > 0
+            grad = cv2.magnitude(cv2.Sobel(img_prev, cv2.CV_32F, 1, 0), cv2.Sobel(img_prev, cv2.CV_32F, 0, 1))[gy, gx]
+            if mask.sum() < min_matches:
+                break
+            keep = mask & (grad >= np.percentile(grad[mask], FLOW_EDGE_PERCENTILE))
+            src = np.stack([gx[keep], gy[keep]], axis=1).astype(np.float32)
+            dst = src + flow[gy[keep], gx[keep]]
+            if len(src) < min_matches:
+                break
+            hom, inliers = cv2.findHomography(src, dst, cv2.RANSAC, RANSAC_REPROJ_PX)
+            if hom is None or inliers.sum() < min_matches:
+                break
+            quad = cv2.perspectiveTransform(prev.reshape(-1, 1, 2).astype(np.float32), hom).reshape(4, 2)
+            ratio = quad_area(quad) / max(quad_area(prev), 1.0)
+            if not is_convex(quad) or not 1 / MAX_AREA_JUMP < ratio < MAX_AREA_JUMP:
+                break
+            if not overlaps_frame(quad, seq.width, seq.height):
+                break
+            quads[j], prev, img_prev, j = quad, quad, img, j + step
+    return quads
+
+
 def smooth(quads: dict[int, np.ndarray], window: int) -> dict[int, np.ndarray]:
     """Savitzky-Golay over the contiguous run; tracker jitter reads as fake immediately."""
     idx = sorted(quads)
@@ -154,6 +200,8 @@ def main() -> None:
     ap.add_argument("--grow", type=int, default=61, help="mask dilation (px) around the quad")
     ap.add_argument("--min-matches", type=int, default=12)
     ap.add_argument("--smooth", type=int, default=9, help="Savitzky-Golay window (odd)")
+    ap.add_argument("--method", choices=("sift", "flow"), default="sift",
+                    help="sift: keypoints (textured facades); flow: dense optical flow (smooth, repainted walls)")
     args = ap.parse_args()
 
     seq = FrameSequence(args.frames)
@@ -165,7 +213,8 @@ def main() -> None:
     if ref_quad.shape != (4, 2):
         sys.exit("--quad needs four [x, y] corners")
 
-    quads = smooth(track(seq, args.ref, ref_quad, lo, hi, args.grow, args.min_matches), args.smooth)
+    tracker = track_flow if args.method == "flow" else track
+    quads = smooth(tracker(seq, args.ref, ref_quad, lo, hi, args.grow, args.min_matches), args.smooth)
     frames = {
         str(i): {
             "q": [[round(float(x), COORD_DECIMALS), round(float(y), COORD_DECIMALS)] for x, y in quads[i]],

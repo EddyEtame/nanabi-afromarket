@@ -21,8 +21,9 @@ import {
   type FilmSource,
   type TimeMap,
 } from '@/lib/film/config';
-import { FilmEngine } from '@/lib/film/film-engine';
+import { FilmEngine, type FilmFinale, type FilmPrelude } from '@/lib/film/film-engine';
 import { chooseMode, type FilmMode } from '@/lib/film/mode';
+import { supportsRemoteFilm } from '@/lib/film/remote-renderer';
 import { acquireSmoothScroll, jumpTo, releaseSmoothScroll, scrollToOffset } from '@/lib/smooth-scroll';
 import styles from './FilmHero.module.css';
 
@@ -51,7 +52,7 @@ export interface FilmHeroProps {
   lqip?: Readonly<Partial<Record<FilmAspect, string>>>;
   /** Overlay layer (copy, CTA). In static mode it flows below the poster. */
   children?: ReactNode;
-  /** Damped scroll progress, 0..1. Also exposed as `--film-p` on the section. */
+  /** Damped scroll progress, 0..1. Also exposed as `--film-p` on the overlay (the copy layer). */
   onProgress?: (p: number) => void;
   /** Extra scroll distance for the pinned film. Defaults to 400lvh / 340lvh. */
   pinLength?: { desktop: string; mobile: string };
@@ -60,6 +61,26 @@ export interface FilmHeroProps {
   className?: string;
   /** UI strings, so the page can translate them. */
   labels?: Partial<FilmLabels>;
+  /**
+   * Layer drawn above the film canvas and below the tracked sign, when the film renders on the main thread
+   * (e.g. a prelude sequence). With the off-main-thread renderer, `prelude` is drawn on the canvas instead.
+   */
+  underlay?: ReactNode;
+  /** Frames played before the film on the same canvas (off-main-thread renderer). */
+  prelude?: FilmPrelude;
+  /**
+   * Ending effects on the film (darken, blur) and cut-outs lifting off its last frame. The render worker draws
+   * the cut-outs itself; with the main-thread renderer the page keeps its own (the section carries
+   * `data-renderer="worker" | "main"` so its CSS can tell).
+   */
+  finale?: FilmFinale;
+  /**
+   * Paints the sign's lettering into a bitmap (width/height = the tracked board's aspect). Lets the
+   * off-main-thread renderer draw the sign in the same GPU frame as the film; without it the DOM sign is used.
+   */
+  signRaster?: (aspect: number) => Promise<ImageBitmap | null>;
+  /** Changes when the lettering changes (e.g. language), to re-paint `signRaster` without restarting. */
+  signKey?: string;
 }
 
 export interface FilmLabels {
@@ -92,6 +113,9 @@ const subscribeReducedMotion = (onChange: () => void) => {
   return () => query.removeEventListener('change', onChange);
 };
 const serverMode = (): ViewMode => 'pending';
+const noSubscribe = () => () => {};
+const NO_EFFECT = { dim: 0, blur: 0, lift: 0, liftOpacity: 0 } as const;
+const serverRemote = () => false;
 
 const toPoster = (poster: string | PosterImage): PosterImage =>
   typeof poster === 'string' ? { src: poster } : poster;
@@ -116,6 +140,11 @@ export function FilmHero({
   debug = false,
   className,
   labels,
+  underlay,
+  prelude,
+  finale,
+  signRaster,
+  signKey,
 }: FilmHeroProps) {
   const text = { ...DEFAULT_LABELS, ...labels };
   const detected = useSyncExternalStore<ViewMode>(subscribeReducedMotion, chooseMode, serverMode);
@@ -125,39 +154,57 @@ export function FilmHero({
   const mode: ViewMode = failed ? 'static' : detected;
   const filmMode = mode === 'hi' || mode === 'lite' ? mode : null;
 
+  const remoteCapable = useSyncExternalStore(noSubscribe, supportsRemoteFilm, serverRemote);
+  const hasSign = sign !== undefined && sign !== null && sign !== false;
+  // The engine and the page must agree on who draws the prelude and the sign.
+  const remote = remoteCapable && (!hasSign || !!signRaster);
+
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasSlotRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<FilmEngine | null>(null);
   const signRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const skipRef = useRef<HTMLAnchorElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   // Engine callbacks read the latest props, so inline props never restart the film.
-  const latest = useRef({ films, timeMap, signTrack, chapters, onProgress });
+  const latest = useRef({ films, timeMap, signTrack, chapters, onProgress, prelude, finale, signRaster });
   useEffect(() => {
-    latest.current = { films, timeMap, signTrack, chapters, onProgress };
+    latest.current = { films, timeMap, signTrack, chapters, onProgress, prelude, finale, signRaster };
   });
 
-  const configKey = JSON.stringify([films, timeMap ?? null, signTrack ?? null]);
-  const hasSign = sign !== undefined && sign !== null && sign !== false;
+  const configKey = JSON.stringify([films, timeMap ?? null, signTrack ?? null, prelude ?? null, finale?.layers ?? null]);
 
   useEffect(() => {
     const section = sectionRef.current;
     const stage = stageRef.current;
-    const canvas = canvasRef.current;
-    if (!filmMode || !section || !stage || !canvas) return;
+    const slot = canvasSlotRef.current;
+    if (!filmMode || !section || !stage || !slot) return;
+    // A fresh canvas per engine: a canvas handed to the render worker can never be drawn on again, and
+    // React re-runs this effect (Strict Mode, film switch) on the same DOM.
+    const canvas = document.createElement('canvas');
+    canvas.className = styles.canvas;
+    canvas.setAttribute('aria-hidden', 'true');
+    slot.append(canvas);
     const lenis = acquireSmoothScroll();
     let activeChapter: string | undefined;
     let engine: FilmEngine | null = null;
     try {
       const config = latest.current;
       engine = new FilmEngine(
-        { section, stage, canvas, sign: signRef.current },
+        { section, stage, canvas, sign: signRef.current, progressTarget: overlayRef.current },
         {
           films: config.films,
           tier: filmMode,
           timeMap: config.timeMap ?? IDENTITY_TIME_MAP,
           signTracks: config.signTrack,
+          prelude: config.prelude,
+          finale: config.finale
+            ? { layers: config.finale.layers, at: (p) => latest.current.finale?.at(p) ?? NO_EFFECT }
+            : undefined,
+          signRaster: config.signRaster ? (aspect) => latest.current.signRaster?.(aspect) ?? Promise.resolve(null) : undefined,
+          remote,
           lenis,
           debug,
           onProgress: (p) => {
@@ -175,12 +222,19 @@ export function FilmHero({
     } catch {
       setFailed(true); // init failure falls back to the static hero
     }
+    engineRef.current = engine;
     return () => {
       engine?.destroy();
+      engineRef.current = null;
+      canvas.remove();
       releaseSmoothScroll();
     };
-    // configKey stands in for films/timeMap/signTrack, which are read through `latest`.
-  }, [filmMode, configKey, debug, hasSign]);
+    // configKey stands in for films/timeMap/signTrack/prelude, which are read through `latest`.
+  }, [filmMode, configKey, debug, hasSign, remote]);
+
+  useEffect(() => {
+    engineRef.current?.refreshSign();
+  }, [signKey]);
 
   const skip = (e: MouseEvent<HTMLAnchorElement>) => {
     const target = document.getElementById(skipTargetId);
@@ -224,6 +278,7 @@ export function FilmHero({
       ref={sectionRef}
       className={className ? `${styles.film} ${className}` : styles.film}
       data-mode={mode}
+      data-renderer={filmMode ? (remote ? 'worker' : 'main') : undefined}
       data-chapter={filmMode ? chapterId : undefined}
       style={style}
     >
@@ -240,7 +295,8 @@ export function FilmHero({
           {/* eslint-disable-next-line @next/next/no-img-element -- art-directed <picture>, static export */}
           <img src={landscape.src} alt="" fetchPriority="high" />
         </picture>
-        {mode !== 'static' && <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />}
+        {mode !== 'static' && <div ref={canvasSlotRef} className={styles.canvasSlot} />}
+        {mode !== 'static' && !remote && underlay}
         {mode !== 'static' && hasSign && (
           <div ref={signRef} className={styles.sign} aria-hidden="true" data-film-sign>
             {sign}
@@ -253,7 +309,7 @@ export function FilmHero({
             </button>
           </div>
         )}
-        <div className={styles.overlay} data-film-overlay>
+        <div ref={overlayRef} className={styles.overlay} data-film-overlay>
           {children}
         </div>
         {mode !== 'static' && chapters.length > 0 && (

@@ -1,7 +1,8 @@
 /*
  * Structural styles for the scroll film. Theme hooks: --film-bg, --film-fg, --film-accent.
  * Inline custom properties set by FilmHero: --film-pin-desktop/-mobile, --film-focal-l/-p, --film-lqip-l/-p.
- * Runtime: --film-p (0..1), --film-loaded (0..1), [data-chapter], [data-film-ready], [data-mode].
+ * Runtime: --film-p (0..1, on .overlay only, so a per-frame write restyles the copy and nothing else),
+ * --film-loaded (0..1), [data-chapter], [data-film-ready], [data-mode].
  * Never put overflow: hidden on an ancestor of .stage: it silently disables position: sticky.
  */
 
@@ -37,6 +38,7 @@
 }
 
 .poster,
+.canvasSlot,
 .canvas {
   position: absolute;
   inset: 0;
@@ -62,22 +64,25 @@
   opacity: 1;
 }
 
-/* JS sizes the box to the sign's largest on-screen size and writes a matrix3d each frame. */
+/*
+ * JS sizes the box to the sign's largest on-screen size and writes matrix3d, opacity and brightness each frame.
+ * will-change pins the raster scale: the layer is drawn once at its largest size and only scaled down by the
+ * compositor, instead of re-rasterising its glowing text at every new scale.
+ * --film-p is reset because the sign never reads it: an inherited per-frame value would restyle (and re-run
+ * the container queries of) the whole lettering subtree on every tick.
+ */
 .sign {
+  --film-p: 0;
   position: absolute;
   top: 0;
   left: 0;
   z-index: 1;
   transform-origin: 0 0;
   backface-visibility: hidden;
+  will-change: transform, opacity, filter;
   container-type: size;
   opacity: 0;
   pointer-events: none;
-}
-
-.sign[data-visible] {
-  opacity: var(--sign-fade, 1);
-  filter: brightness(calc(0.55 + var(--sign-b, 0.8) * 0.6));
 }
 
 /* Copy lives in the small viewport so it is never under the iOS toolbar. */

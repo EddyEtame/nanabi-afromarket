@@ -1,5 +1,5 @@
 /* =====================================================================
-   Hero film overlays. The film section exposes --film-p (0..1) and data-chapter.
+   Hero film overlays. The overlay (copy layer) carries --film-p (0..1); the section carries data-chapter.
    ===================================================================== */
 
 .sr-only {
@@ -81,8 +81,8 @@
   bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
   translate: -50% 0;
   color: var(--hero-ink);
+  /* Already damped by the engine: a transition here would restart on every frame. */
   opacity: calc(1 - var(--film-p, 0) * 18);
-  transition: opacity 300ms;
 }
 .hero-cue::after {
   content: "";
@@ -163,9 +163,11 @@
   opacity: 1;
   transform: none;
 }
-/* The storefront chapter waits for the sign to be read first. */
+/* The storefront chapter waits for the sign to be read first. Its opacity follows the damped progress
+   directly, so only the slide keeps a transition (an opacity transition would restart every frame). */
 .hero-film[data-chapter="rue"] [data-card="rue"] {
   opacity: clamp(0, (var(--film-p, 0) - 0.05) * 20, 1);
+  transition: transform 900ms var(--ease-cinema);
 }
 
 /* Lexique: film subtitles, mono timecode over an italic line. */
@@ -210,7 +212,11 @@
   width: clamp(120px, 18vw, 260px);
   translate: -50% -50%;
   perspective: 900px;
-  opacity: clamp(0, (var(--film-p, 0) - 0.88) * 12, 0.92);
+  /* Opacity is written by the hero script only near the end; the per-frame progress stops here. Its own layer
+     keeps that fade on the compositor instead of repainting the blurred, masked logo every frame. */
+  --film-p: 0;
+  opacity: 0;
+  will-change: opacity;
   pointer-events: none;
 }
 .mirror-mark img {
@@ -222,14 +228,22 @@
 }
 
 /* ---------- Ending A: the shelves lift off the last frame ---------- */
+/* The render worker draws the cut-outs in the film's own GPU frame; this DOM version serves the main-thread
+   renderer only. */
+.hero-film[data-renderer="worker"] .finale {
+  display: none;
+}
 .finale {
   position: absolute;
   inset: 0;
   container-type: size;
   pointer-events: none;
-  /* 0 until the film rests on its last frame, then 0 → 1 over the dwell. */
-  --f: clamp(0, calc((var(--film-p, 0) - 0.93) / 0.065), 1);
-  opacity: clamp(0, calc((var(--film-p, 0) - 0.918) * 400), 1);
+  /* --f (0 until the film rests on its last frame, then 0 → 1 over the dwell) and opacity are written by the
+     hero script, and only while they change. The per-frame progress stops here: this size container and its
+     three plates are not restyled on every tick of the film. */
+  --film-p: 0;
+  --f: 0;
+  opacity: 0;
 }
 .finale__plate {
   position: absolute;
@@ -271,11 +285,8 @@
 .finale__layer--3 {
   transform: translate3d(calc(var(--f) * 3%), calc(var(--f) * 7%), 0) scale(calc(1 + var(--f) * 0.22));
 }
-/* The film behind falls into shadow so the doubles under the cut-outs disappear. */
-:root[data-ending="a"] .hero-film canvas {
-  filter: brightness(calc(1 - clamp(0, calc((var(--film-p, 0) - 0.93) / 0.065), 1) * 0.86))
-    blur(calc(clamp(0, calc((var(--film-p, 0) - 0.93) / 0.065), 1) * 5px));
-}
+/* The film behind falls into shadow so the doubles under the cut-outs disappear: the film engine darkens and
+   blurs it (in the worker's shader, or as a canvas filter present only during the dwell). */
 
 /* ---------- Static mode keeps the cards readable in flow ---------- */
 .hero-film[data-mode="static"] .chapter-card,
@@ -290,4 +301,13 @@
 .hero-film[data-mode="static"] .hero-cue,
 .hero-film[data-mode="static"] .mirror-mark {
   display: none;
+}
+
+/* Écrin prelude: above the film canvas, below the living sign. */
+.prelude {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }

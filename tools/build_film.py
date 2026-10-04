@@ -26,8 +26,8 @@ from pathlib import Path
 
 # (width, height, WebP quality) per tier
 TIERS: dict[str, dict[str, tuple[int, int, int]]] = {
-    "16x9": {"hi": (1920, 1080, 62), "lite": (1280, 720, 58)},
-    "9x16": {"hi": (900, 1600, 62), "lite": (720, 1280, 58)},
+    "16x9": {"hi": (1920, 1080, 54), "lite": (1280, 720, 50)},
+    "9x16": {"hi": (900, 1600, 54), "lite": (720, 1280, 50)},
 }
 # (width, height, CRF) of the linear film
 VIDEO: dict[str, tuple[int, int, int]] = {"16x9": (1920, 1080, 23), "9x16": (1080, 1920, 24)}

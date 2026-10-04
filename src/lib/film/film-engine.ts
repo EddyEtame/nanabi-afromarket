@@ -27,6 +27,8 @@ import {
   type SignTrack,
 } from './homography';
 import { decodedBudgetBytes } from './mode';
+import { RemoteRenderer, supportsRemoteFilm } from './remote-renderer';
+import type { RenderEffect, RenderLiftLayer } from './render-protocol';
 
 export interface FilmEngineElements {
   /** Tall section whose scroll range drives the film. */
@@ -36,6 +38,31 @@ export interface FilmEngineElements {
   readonly canvas: HTMLCanvasElement;
   /** Element glued onto the tracked sign, if any. */
   readonly sign: HTMLElement | null;
+  /**
+   * Receives `--film-p` every frame (default: the section). Every descendant is restyled on each write,
+   * so this should be the smallest box that holds the progress-driven copy.
+   */
+  readonly progressTarget?: HTMLElement | null;
+}
+
+/**
+ * Frames shown before the film on the same canvas (off-main-thread renderer only; the Canvas2D path leaves
+ * it to the page). The time map must hold the film's first frame until at least `end + fade`.
+ */
+export interface FilmPrelude {
+  /** Per aspect; each must ship the same tier sizes as the film it opens. */
+  readonly films: Readonly<Record<FilmAspect, FilmSource>>;
+  /** Scroll progress at which the prelude's last frame is reached. */
+  readonly end: number;
+  /** Progress span over which it hands over to the film's first frame. */
+  readonly fade: number;
+}
+
+/** Ending effects driven by the damped progress: the film darkens and blurs while cut-outs lift off it. */
+export interface FilmFinale {
+  /** Cut-outs of the last frame per aspect (drawn by the render worker; the page draws its own otherwise). */
+  readonly layers: Readonly<Record<FilmAspect, readonly RenderLiftLayer[]>>;
+  readonly at: (p: number) => RenderEffect;
 }
 
 export interface FilmEngineOptions {
@@ -43,6 +70,15 @@ export interface FilmEngineOptions {
   readonly tier: Tier;
   readonly timeMap: TimeMap;
   readonly signTracks?: Readonly<Partial<Record<FilmAspect, string>>>;
+  /**
+   * Paints the sign's lettering into a bitmap of the given width/height aspect, for the off-main-thread
+   * renderer, which draws the sign in the same GPU frame as the film. Without it the DOM sign is used.
+   */
+  readonly signRaster?: (aspect: number) => Promise<ImageBitmap | null>;
+  readonly prelude?: FilmPrelude;
+  readonly finale?: FilmFinale;
+  /** Allow the off-main-thread renderer when the browser supports it (default true). */
+  readonly remote?: boolean;
   readonly lenis: Lenis | null;
   readonly debug?: boolean;
   /** Damped scroll progress (0..1), called whenever it changes. */
@@ -57,7 +93,10 @@ interface ActiveFilm {
   readonly tier: Tier;
   readonly size: TierSize;
   readonly focal: readonly [number, number];
-  readonly store: FrameStore;
+  /** Main-thread frame store; null when the render worker owns the frames. */
+  readonly store: FrameStore | null;
+  /** Prelude frames ahead of the film on the render worker's timeline. */
+  readonly prelude: number;
 }
 
 /** Progress damping rate (1/s). Lenis already smooths the wheel, so it gets a stiffer follow than touch. */
@@ -73,6 +112,9 @@ const CORES_FOR_TWO_WORKERS = 6;
 /** Caps the sign's raster size; past this the GPU layer costs more than the extra sharpness is worth. */
 const MAX_SIGN_PX = 4096;
 const BRIGHTNESS_EPSILON = 0.004;
+/** The sign follows the board's measured light: brightness(floor + b × gain), b in 0..1. */
+const SIGN_BRIGHTNESS_FLOOR = 0.55;
+const SIGN_BRIGHTNESS_GAIN = 0.6;
 const DECODE_PERCENTILE = 0.95;
 
 /**
@@ -80,7 +122,8 @@ const DECODE_PERCENTILE = 0.95;
  * memory budget, frame-rate independent damping, and a planar-tracked DOM element drawn in the same tick.
  */
 export class FilmEngine {
-  private readonly ctx: CanvasRenderingContext2D;
+  private readonly ctx: CanvasRenderingContext2D | null = null;
+  private readonly remote: RemoteRenderer | null = null;
   private readonly portrait = matchMedia(PORTRAIT_QUERY);
   private readonly damping: number;
   private readonly quad = new Float64Array(8);
@@ -109,18 +152,45 @@ export class FilmEngine {
   private drawKey = '';
   private signVisible = false;
   private lastBrightness = Number.NaN;
+  private lastFade = '';
   private ready = false;
   private destroyed = false;
   private hud: HTMLPreElement | null = null;
+  private lastFilter = '';
+  private remoteStats: { live: number; slots: number; shown: number; wanted: number; source: string } = {
+    live: 0,
+    slots: 0,
+    shown: 0,
+    wanted: 0,
+    source: '-',
+  };
 
   constructor(
     private readonly el: FilmEngineElements,
     private readonly o: FilmEngineOptions,
   ) {
     setupScrollTrigger();
-    const ctx = el.canvas.getContext('2d', { alpha: false });
-    if (!ctx) throw new Error('FilmEngine: 2D canvas unavailable');
-    this.ctx = ctx;
+    // Off the main thread when possible: the canvas goes to a worker that decodes, uploads and draws.
+    // The DOM sign is then redundant (the worker draws it), unless the page cannot rasterise it.
+    if (o.remote !== false && supportsRemoteFilm() && (!el.sign || o.signRaster)) {
+      try {
+        this.remote = new RemoteRenderer(el.canvas, decodedBudgetBytes(), {
+          onReady: () => this.markReady(),
+          onLoaded: (loaded, total) => this.el.section.style.setProperty('--film-loaded', (loaded / total).toFixed(3)),
+          onFatal: () => this.o.onFatal(),
+          onStats: (live, slots, shown, wanted, source) => (this.remoteStats = { live, slots, shown, wanted, source }),
+        });
+      } catch {
+        this.remote = null;
+      }
+    }
+    if (this.remote) {
+      if (el.sign) el.sign.hidden = true;
+    } else {
+      const ctx = el.canvas.getContext('2d', { alpha: false });
+      if (!ctx) throw new Error('FilmEngine: 2D canvas unavailable');
+      this.ctx = ctx;
+    }
     this.damping = o.lenis && !matchMedia('(pointer: coarse)').matches ? WHEEL_DAMPING : TOUCH_DAMPING;
     this.film = this.mountFilm(currentAspect());
 
@@ -151,9 +221,14 @@ export class FilmEngine {
 
     this.resize();
     this.loadTrack();
-    this.film.store.start();
+    this.film.store?.start();
     this.emitProgress();
     gsap.ticker.add(this.tick);
+  }
+
+  /** Re-paints the sign's lettering (language switch) without restarting the film. */
+  refreshSign(): void {
+    if (this.remote && this.track) this.rasterSign(this.track);
   }
 
   destroy(): void {
@@ -166,15 +241,18 @@ export class FilmEngine {
     this.dprQuery?.removeEventListener('change', this.onDprChange);
     window.removeEventListener('pagehide', this.onPageHide);
     this.trackAbort?.abort();
-    this.film.store.destroy();
+    this.film.store?.destroy();
+    this.remote?.destroy();
     this.hud?.remove();
     const { section, sign, canvas } = this.el;
     section.removeAttribute('data-film-ready');
-    section.style.removeProperty('--film-p');
+    (this.el.progressTarget ?? section).style.removeProperty('--film-p');
     section.style.removeProperty('--film-loaded');
     sign?.removeAttribute('data-visible');
-    sign?.style.removeProperty('transform');
-    canvas.width = canvas.height = 0; // releases iOS canvas memory immediately
+    for (const prop of ['transform', 'opacity', 'filter']) sign?.style.removeProperty(prop);
+    if (sign) sign.hidden = false;
+    // Releases iOS canvas memory at once. A transferred canvas is sized by its worker, which is gone now.
+    if (!this.remote) canvas.width = canvas.height = 0;
   }
 
   // Loop
@@ -191,13 +269,21 @@ export class FilmEngine {
     }
     if (!this.dirty && (this.parked || !this.planDirty)) return; // idle: one comparison per frame
 
-    const last = this.film.store.count - 1;
+    const last = this.film.source.frameCount - 1;
     const f = remap(this.sp, this.o.timeMap) * last;
     const target = remap(this.p, this.o.timeMap) * last;
+    if (this.remote) {
+      this.remote.frame(this.timeline(this.sp, f), this.timeline(this.p, target), this.dir);
+      this.planDirty = false;
+      if (this.hud) this.updateHud(f, target);
+      this.dirty = this.sp !== this.p;
+      return;
+    }
+    const store = this.film.store!;
     const c = Math.round(f);
     const t = Math.round(target);
     if (!this.parked && (this.planDirty || c !== this.lastCurrent || t !== this.lastTarget)) {
-      this.film.store.plan(f, target, this.dir);
+      store.plan(f, target, this.dir);
       this.lastCurrent = c;
       this.lastTarget = t;
       this.planDirty = false;
@@ -207,10 +293,30 @@ export class FilmEngine {
     this.dirty = this.sp !== this.p;
   };
 
+  /**
+   * Film frame -> render-worker timeline. The prelude's frames come first: scrubbed over [0, end], then a
+   * blend from its last frame (the film's first, re-shot) to the film's frame 0 over `fade`, then the film.
+   */
+  private timeline(p: number, f: number): number {
+    const n = this.film.prelude;
+    const prelude = this.o.prelude;
+    if (!n || !prelude) return f;
+    if (p <= prelude.end) return (Math.max(0, p) / prelude.end) * (n - 1);
+    if (p <= prelude.end + prelude.fade) return n - 1 + (p - prelude.end) / prelude.fade;
+    return n + f;
+  }
+
   private park(parked: boolean): void {
     this.parked = parked;
-    if (parked) this.film.store.trim();
+    this.remote?.park(parked);
+    if (parked) this.film.store?.trim();
     else this.planDirty = this.dirty = true;
+  }
+
+  private markReady(): void {
+    if (this.ready) return;
+    this.ready = true;
+    this.el.section.setAttribute('data-film-ready', '');
   }
 
   private setProgress(p: number): void {
@@ -219,12 +325,31 @@ export class FilmEngine {
   }
 
   private emitProgress(): void {
-    this.el.section.style.setProperty('--film-p', this.sp.toFixed(4));
+    (this.el.progressTarget ?? this.el.section).style.setProperty('--film-p', this.sp.toFixed(4));
     this.o.onProgress(this.sp);
+    if (this.o.finale) this.applyEffect(this.o.finale.at(this.sp));
+  }
+
+  /**
+   * Remote: the worker darkens/blurs the film and lifts the cut-outs in its shader. Main thread: a CSS filter
+   * on the canvas, present only while it does something (a filter pass on every frame of the film is costly).
+   */
+  private applyEffect(e: RenderEffect): void {
+    if (this.remote) {
+      this.remote.effect(e);
+      return;
+    }
+    const filter = e.dim > 0 || e.blur > 0 ? `brightness(${(1 - e.dim).toFixed(3)}) blur(${e.blur.toFixed(2)}px)` : '';
+    if (filter !== this.lastFilter) {
+      this.lastFilter = filter;
+      this.el.canvas.style.filter = filter;
+    }
   }
 
   private render(f: number): void {
     const store = this.film.store;
+    const ctx = this.ctx;
+    if (!store || !ctx) return;
     let a = Math.floor(f);
     let b = Math.min(store.count - 1, a + 1);
     let t = f - a;
@@ -249,7 +374,7 @@ export class FilmEngine {
     if (!imageA) return;
     this.drawKey = key;
 
-    const { ctx, rect: r } = this;
+    const r = this.rect;
     ctx.globalAlpha = 1;
     ctx.drawImage(imageA, r.x, r.y, r.w, r.h);
     if (imageB) {
@@ -258,14 +383,11 @@ export class FilmEngine {
       ctx.globalAlpha = 1;
     }
     this.renderSign(a, t); // same tick as the blit, so both land in the same composited frame
-    if (!this.ready) {
-      this.ready = true;
-      this.el.section.setAttribute('data-film-ready', '');
-    }
+    this.markReady();
   }
 
   private renderCurrent(): void {
-    this.render(remap(this.sp, this.o.timeMap) * (this.film.store.count - 1));
+    this.render(remap(this.sp, this.o.timeMap) * (this.film.source.frameCount - 1));
   }
 
   private renderSign(a: number, t: number): void {
@@ -276,19 +398,27 @@ export class FilmEngine {
     if (!track || !matrix) {
       if (this.signVisible) {
         this.signVisible = false;
+        this.lastFade = '';
+        sign.style.opacity = '0';
         sign.removeAttribute('data-visible');
       }
       return;
     }
+    // Transform, opacity and filter go straight on the element: none of them inherits, so the sign's text
+    // subtree (a size container) is never restyled per frame. Custom properties would cascade into it.
     sign.style.transform = matrix;
-    sign.style.setProperty('--sign-fade', fadeAt(track, a, t).toFixed(3));
+    const fade = fadeAt(track, a, t).toFixed(3);
+    if (fade !== this.lastFade) {
+      this.lastFade = fade;
+      sign.style.opacity = fade;
+    }
     const brightness = brightnessAt(track, a, t);
     if (
       !Number.isNaN(brightness) &&
       (Number.isNaN(this.lastBrightness) || Math.abs(brightness - this.lastBrightness) > BRIGHTNESS_EPSILON)
     ) {
       this.lastBrightness = brightness;
-      sign.style.setProperty('--sign-b', brightness.toFixed(3));
+      sign.style.filter = `brightness(${(SIGN_BRIGHTNESS_FLOOR + brightness * SIGN_BRIGHTNESS_GAIN).toFixed(3)})`;
     }
     if (!this.signVisible) {
       this.signVisible = true;
@@ -320,14 +450,21 @@ export class FilmEngine {
     const dpr = Math.min(window.devicePixelRatio || 1, MAX_BACKING_DPR, Math.max(1, 1 / cssPerSourcePx));
     const backingWidth = Math.round(width * dpr);
     const backingHeight = Math.round(height * dpr);
+    this.cssWidth = width;
+    this.cssHeight = height;
+    if (this.remote) {
+      this.remote.resize(backingWidth, backingHeight, backingWidth / width);
+      this.dirty = true;
+      return;
+    }
     const { canvas } = this.el;
     if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
       canvas.width = backingWidth; // resets the context state
       canvas.height = backingHeight;
-      this.ctx.imageSmoothingQuality = 'medium';
+      // 'low' is plain bilinear. 'medium' makes Chrome build a mip chain for every new frame on upload, which
+      // doubled the per-frame upload cost on the main thread; the frame is drawn near 1:1, so mips add nothing.
+      if (this.ctx) this.ctx.imageSmoothingQuality = 'low';
     }
-    this.cssWidth = width;
-    this.cssHeight = height;
     this.rect = cover(size.width, size.height, backingWidth, backingHeight, focal);
     this.sizeSign();
     this.drawKey = '';
@@ -338,7 +475,7 @@ export class FilmEngine {
   private sizeSign(): void {
     const { sign, canvas } = this.el;
     const track = this.track;
-    if (!sign || !track || !canvas.width) return;
+    if (this.remote || !sign || !track || !canvas.width) return;
     const edge = maxHorizontalEdge(track, this.rect, this.cssWidth / canvas.width, this.cssHeight / canvas.height);
     this.signWidth = Math.max(1, Math.min(MAX_SIGN_PX, Math.ceil(edge)));
     this.signHeight = Math.max(1, Math.ceil(this.signWidth / track.aspect));
@@ -364,11 +501,49 @@ export class FilmEngine {
     const resolved = resolveTier(source, this.o.tier);
     if (!resolved || source.frameCount < 1) throw new Error(`FilmEngine: no frames for ${aspect}`);
     const { tier, size } = resolved;
-    // Absolute URLs: the worker resolves relative ones against its own script URL.
-    const urls = Array.from(
-      { length: source.frameCount },
-      (_, i) => new URL(frameUrl(source, tier, i), document.baseURI).href,
-    );
+    const focal = source.focal ?? DEFAULT_FOCAL;
+    // Absolute URLs: workers resolve relative ones against their own script URL.
+    const absolute = (s: FilmSource, t: Tier) =>
+      Array.from({ length: s.frameCount }, (_, i) => new URL(frameUrl(s, t, i), document.baseURI).href);
+    const urls = absolute(source, tier);
+    if (this.remote) {
+      // The prelude shares the film's texture pool, so it must ship the same frame size.
+      const pre = this.o.prelude?.films[aspect];
+      const preTier = pre ? resolveTier(pre, tier) : null;
+      const usePrelude =
+        !!pre && !!preTier && preTier.size.width === size.width && preTier.size.height === size.height;
+      const prelude = usePrelude ? absolute(pre, preTier.tier) : [];
+      // Hardware-decodable copy, only if every frame of the timeline has one in the same codec.
+      const avcOf = (s: FilmSource, t: Tier) => {
+        const a = s.avc?.tiers[t];
+        return a && s.avc
+          ? {
+              codec: a.codec,
+              urls: Array.from(
+                { length: s.frameCount },
+                (_, i) => new URL(frameUrl(s, t, i, s.avc!.pattern), document.baseURI).href,
+              ),
+            }
+          : null;
+      };
+      const filmAvc = avcOf(source, tier);
+      const preludeAvc = usePrelude ? avcOf(pre, preTier.tier) : null;
+      const avc =
+        filmAvc && (!usePrelude || (preludeAvc && preludeAvc.codec === filmAvc.codec))
+          ? { codec: filmAvc.codec, urls: [...(preludeAvc?.urls ?? []), ...filmAvc.urls] }
+          : undefined;
+      this.remote.sequence({
+        urls: [...prelude, ...urls],
+        width: size.width,
+        height: size.height,
+        focal: [focal[0], focal[1]],
+        prelude: prelude.length,
+        avc,
+      });
+      const lift = this.o.finale?.layers[aspect];
+      if (lift) this.remote.lift(lift.map((l) => ({ ...l, url: new URL(l.url, document.baseURI).href })));
+      return { aspect, source, tier, size, focal, store: null, prelude: prelude.length };
+    }
     const store = new FrameStore({
       urls,
       frameBytes: size.width * size.height * RGBA_BYTES,
@@ -381,14 +556,14 @@ export class FilmEngine {
       onLoaded: (loaded, total) => this.el.section.style.setProperty('--film-loaded', (loaded / total).toFixed(3)),
       onFatal: () => this.o.onFatal(),
     });
-    return { aspect, source, tier, size, focal: source.focal ?? DEFAULT_FOCAL, store };
+    return { aspect, source, tier, size, focal, store, prelude: 0 };
   }
 
   /** Rotating the device swaps frame set and track while keeping progress. */
   private readonly onAspectChange = (): void => {
     const aspect = currentAspect();
     if (aspect === this.film.aspect) return;
-    this.film.store.destroy();
+    this.film.store?.destroy();
     try {
       this.film = this.mountFilm(aspect);
     } catch {
@@ -401,7 +576,7 @@ export class FilmEngine {
     this.lastCurrent = this.lastTarget = -1;
     this.resize();
     this.loadTrack();
-    this.film.store.start();
+    this.film.store?.start();
     this.planDirty = this.dirty = true;
   };
 
@@ -417,12 +592,30 @@ export class FilmEngine {
       .then((track) => {
         if (controller.signal.aborted || film !== this.film) return;
         this.track = track;
+        if (this.remote) {
+          this.remote.track(track);
+          if (track) this.rasterSign(track);
+        }
         this.sizeSign();
         this.drawKey = '';
         this.dirty = true;
       })
       .catch(() => {
         // Aborted or unreadable: the film runs without the living sign.
+      });
+  }
+
+  private rasterSign(track: SignTrack): void {
+    const film = this.film;
+    this.o
+      .signRaster?.(track.aspect)
+      .then((bitmap) => {
+        if (!bitmap) return;
+        if (this.destroyed || film !== this.film || !this.remote) bitmap.close();
+        else this.remote.sign(bitmap);
+      })
+      .catch(() => {
+        // Lettering unavailable: the film runs without the living sign.
       });
   }
 
@@ -445,6 +638,13 @@ export class FilmEngine {
   private updateHud(f: number, target: number): void {
     if (!this.hud) return;
     const { store, aspect, tier } = this.film;
+    if (!store) {
+      const s = this.remoteStats;
+      this.hud.textContent =
+        `${aspect}/${tier} (worker, ${s.source})  frame ${f.toFixed(1)} -> ${target.toFixed(1)}  lag ${(target - f).toFixed(1)}\n` +
+        `gpu frames ${s.live}/${s.slots}  shown ${s.shown.toFixed(1)}  wanted ${s.wanted.toFixed(1)}`;
+      return;
+    }
     const samples = [...store.decodeMs].sort((x, y) => x - y);
     const p95 = samples.length ? samples[Math.floor(samples.length * DECODE_PERCENTILE)].toFixed(1) : '-';
     const dpr = this.el.canvas.width / this.cssWidth;

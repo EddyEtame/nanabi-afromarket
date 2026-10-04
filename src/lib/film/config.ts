@@ -20,6 +20,14 @@ export interface FilmSource {
   readonly focal?: readonly [x: number, y: number];
   /** Linear MP4 offered by "Voir le film" in static mode. */
   readonly video?: string;
+  /**
+   * Same frames as independent H.264 keyframes (tools/build_avc.py), decoded on the GPU's video engine by
+   * WebCodecs in the render worker. Same tokens as `pattern`; each tier has the size of the image tier.
+   */
+  readonly avc?: {
+    readonly pattern: string;
+    readonly tiers: Readonly<Partial<Record<Tier, { readonly codec: string }>>>;
+  };
 }
 
 export interface FilmChapter {
@@ -47,8 +55,8 @@ export function currentAspect(): FilmAspect {
   return matchMedia(PORTRAIT_QUERY).matches ? '9x16' : '16x9';
 }
 
-export function frameUrl(source: FilmSource, tier: Tier, index: number): string {
-  return source.pattern
+export function frameUrl(source: FilmSource, tier: Tier, index: number, pattern = source.pattern): string {
+  return pattern
     .replaceAll('{set}', source.set)
     .replaceAll('{tier}', tier)
     .replace(INDEX_TOKEN, (_, zeros: string | undefined) => String(index).padStart(zeros?.length ?? 0, '0'));
