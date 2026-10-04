@@ -1,0 +1,25 @@
+{
+  "aspect": "16x9",
+  "frameCount": 48,
+  "tiers": {
+    "hi": {
+      "width": 1920,
+      "height": 1080,
+      "quality": 54,
+      "bytes": 2774584
+    },
+    "lite": {
+      "width": 1280,
+      "height": 720,
+      "quality": 50,
+      "bytes": 1414684
+    }
+  },
+  "lqip": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAADwAwCdASogABIAPu1qqVAppjmiqA1TMB2JZQDA3BDRdH7xgUzWBBHgAP7xgIImilD0AlC/Phi/qDkK9p1/Ar9LGvqiW0G/dKztfC1dxc0Fd4gxp8e/APIxTnQpTx64v+RNdkbcLCMQ4n59F1vAAAAA",
+  "poster": {
+    "width": 1920,
+    "height": 1080,
+    "avifBytes": 52537,
+    "jpgBytes": 154779
+  }
+}
